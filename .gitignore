@@ -1,6 +1,8 @@
 TextRelevance/data/
 TextRelevance/processed_data/
-TextRelevence/results/
+TextRelevance/results/
+
+LambdaMart/data/
 
 __pycache__/
 .idea/
