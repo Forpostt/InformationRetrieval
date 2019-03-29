@@ -1,2 +1,2 @@
-# TextRelevance
-https://www.kaggle.com/c/text-relevance-competition-ir-2-ts-spring-2019
+# LambdaMart
+https://www.kaggle.com/c/learning-to-rank-ts-spring-2019
