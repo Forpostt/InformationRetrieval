@@ -1,0 +1,9 @@
+TextRelevance/data/
+TextRelevance/processed_data/
+TextRelevence/results/
+
+__pycache__/
+.idea/
+.ipynb_checkpoints/
+*.ipynb
+
