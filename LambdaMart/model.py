@@ -9,11 +9,9 @@ from utils import dcg
 
 
 params = {
-    'gamma': Hyper.gamma,
-    'learning_rate': Hyper.learning_rate,
+    'eta': 0.2,
     'max_depth': Hyper.max_depth,
-    'min_child_weight': 0.1,
-    'eval_metric': ['ndcg@5', 'map@5'],
+    'eval_metric': 'ndcg@5',
 }
 
 
@@ -49,22 +47,26 @@ class LambdaMart(object):
         dlabels = dtrain.get_label()
         cur_sample = 0
 
-        grad = np.ndarray(shape=(predict.shape[0], ))
-        hess = np.ndarray(shape=(predict.shape[0], ))
+        grad = np.ones(shape=(predict.shape[0], ))
+        hess = np.ones(shape=(predict.shape[0], ))
 
         for i, group in enumerate(self.train_groups):
             labels = dlabels[cur_sample:cur_sample + group]
+
+            if np.unique(labels).shape[0] == 1:
+                cur_sample += group
+                continue
+
             current_predict = predict[cur_sample:cur_sample + group]
             permutations = self.query_id_to_permutations[i]
 
             max_dcg = dcg(np.sort(labels)[::-1])
             sorted_ids = np.argsort(current_predict)[::-1] + 1
 
-            delta_ndcg = np.tile(1 / np.log(sorted_ids), (group, 1))
+            delta_ndcg = np.tile(1 / np.log(sorted_ids + 1), (group, 1))
             delta_ndcg = delta_ndcg.transpose() - delta_ndcg
             delta_ndcg = (np.power(2, labels.reshape((-1, 1))) - 1) * delta_ndcg
             delta_ndcg = delta_ndcg + delta_ndcg.transpose()
-
             delta_ndcg = np.abs(delta_ndcg / max_dcg)
 
             ro = np.tile(predict[cur_sample:cur_sample + group], (group, 1))
@@ -72,11 +74,11 @@ class LambdaMart(object):
             ro = 1 / (np.exp(ro) + 1)
 
             grad[cur_sample:cur_sample + group] = (-Hyper.gamma * ro * delta_ndcg * permutations).sum(axis=1).reshape(-1, )
-            hess[cur_sample:cur_sample + group] = (Hyper.gamma**2 * delta_ndcg * ro * (1 -ro) * permutations).sum(axis=1).reshape(-1, )
+            hess[cur_sample:cur_sample + group] = (Hyper.gamma**2 * delta_ndcg * ro * (1 -ro) * np.abs(permutations)).sum(axis=1).reshape(-1, )
 
             cur_sample += group
 
-        return grad, hess
+        return grad.reshape((-1, 1)), hess.reshape((-1, 1))
 
     def fit(self, dtrain, train_groups):
         self._initialize(dtrain, train_groups)

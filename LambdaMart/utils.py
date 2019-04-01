@@ -40,4 +40,4 @@ def create_submission(q_id_test, predict):
 
 
 def dcg(labels):
-    return (np.power(2, labels) - 1) / np.log(np.arange(1, len(labels) + 1) + 1)
+    return ((np.power(2, labels) - 1) / np.log(np.arange(1, len(labels) + 1) + 1)).sum()
