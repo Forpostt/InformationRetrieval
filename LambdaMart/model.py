@@ -5,15 +5,14 @@ import numpy as np
 import tqdm
 
 from hyper import Hyper
-from utils import load_data, create_submission, dcg
+from utils import dcg
 
 
 params = {
-    'gamma': 1.0,
+    'gamma': Hyper.gamma,
     'learning_rate': Hyper.learning_rate,
     'max_depth': Hyper.max_depth,
     'min_child_weight': 0.1,
-    'objective': 'rank:pairwise',
     'eval_metric': ['ndcg@5', 'map@5'],
 }
 
@@ -36,7 +35,7 @@ class LambdaMart(object):
         cur_sample = 0
 
         for i, group in tqdm.tqdm(enumerate(train_groups)):
-            labels = dlabels[cur_sample:cur_sample + group + 1]
+            labels = dlabels[cur_sample:cur_sample + group]
             labels_2d = np.tile(labels, (group, 1))
 
             permutations = np.zeros(shape=(group, group))
@@ -54,23 +53,26 @@ class LambdaMart(object):
         hess = np.ndarray(shape=(predict.shape[0], ))
 
         for i, group in enumerate(self.train_groups):
-            labels = dlabels[cur_sample:cur_sample + group + 1]
+            labels = dlabels[cur_sample:cur_sample + group]
+            current_predict = predict[cur_sample:cur_sample + group]
             permutations = self.query_id_to_permutations[i]
 
             max_dcg = dcg(np.sort(labels)[::-1])
-            sorted_ids = np.argsort(labels)[::-1] + 1
+            sorted_ids = np.argsort(current_predict)[::-1] + 1
 
             delta_ndcg = np.tile(1 / np.log(sorted_ids), (group, 1))
             delta_ndcg = delta_ndcg.transpose() - delta_ndcg
             delta_ndcg = (np.power(2, labels.reshape((-1, 1))) - 1) * delta_ndcg
+            delta_ndcg = delta_ndcg + delta_ndcg.transpose()
+
             delta_ndcg = np.abs(delta_ndcg / max_dcg)
 
-            ro = np.tile(predict[cur_sample:cur_sample + group + 1], (group, 1))
+            ro = np.tile(predict[cur_sample:cur_sample + group], (group, 1))
             ro = Hyper.gamma * (ro.transpose() - ro)
             ro = 1 / (np.exp(ro) + 1)
 
-            grad[cur_sample:cur_sample + group + 1] = (-Hyper.gamma * ro * delta_ndcg * permutations).sum(axis=1).reshape(-1, )
-            hess[cur_sample:cur_sample + group + 1] = (Hyper.gamma**2 * delta_ndcg * ro * (1 -ro)).sum(axis=1).reshape(-1, )
+            grad[cur_sample:cur_sample + group] = (-Hyper.gamma * ro * delta_ndcg * permutations).sum(axis=1).reshape(-1, )
+            hess[cur_sample:cur_sample + group] = (Hyper.gamma**2 * delta_ndcg * ro * (1 -ro) * permutations).sum(axis=1).reshape(-1, )
 
             cur_sample += group
 

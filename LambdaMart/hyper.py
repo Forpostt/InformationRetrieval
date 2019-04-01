@@ -8,8 +8,8 @@ class Hyper(object):
     test_data = '{}/data/test.txt'.format(base_path)
 
     n_estimators = 20
-    max_depth = 7
-    learning_rate = 0.1
+    max_depth = 10
+    learning_rate = 0.3
     gamma = 1.0
 
     submission = '{}/data/sub.csv'.format(base_path)

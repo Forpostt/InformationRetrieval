@@ -22,7 +22,7 @@ def load_data():
     test_dmatrix = xgb.DMatrix(x_test, y_test)
     test_dmatrix.set_group(groups_test)
 
-    return train_dmatrix, test_dmatrix, groups_train, groups_test
+    return (train_dmatrix, groups_train, q_id_train), (test_dmatrix, groups_test, q_id_test)
 
 
 def create_submission(q_id_test, predict):
