@@ -22,7 +22,7 @@ def load_data():
     test_dmatrix = xgb.DMatrix(x_test, y_test)
     test_dmatrix.set_group(groups_test)
 
-    return train_dmatrix, test_dmatrix, q_id_test
+    return train_dmatrix, test_dmatrix, groups_train, groups_test
 
 
 def create_submission(q_id_test, predict):
@@ -37,3 +37,7 @@ def create_submission(q_id_test, predict):
 
             for doc_id in sorted_args:
                 fd.write('{},{}\n'.format(q_id, doc_id + 1))
+
+
+def dcg(labels):
+    return (np.power(2, labels) - 1) / np.log(np.arange(1, len(labels) + 1) + 1)

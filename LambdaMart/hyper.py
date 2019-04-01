@@ -2,11 +2,14 @@
 
 
 class Hyper(object):
-    train_data = '/home/pmankevich/git/LambdaMart/data/train.txt'
-    test_data = '/home/pmankevich/git/LambdaMart/data/test.txt'
+    base_path = '/home/pmankevich/git/InformationRetrieval/LambdaMart'
+
+    train_data = '{}/data/train.txt'.format(base_path)
+    test_data = '{}/data/test.txt'.format(base_path)
 
     n_estimators = 20
     max_depth = 7
     learning_rate = 0.1
+    gamma = 1.0
 
-    submission = '/home/pmankevich/git/LambdaMart/data/sub.csv'
+    submission = '{}/data/sub.csv'.format(base_path)

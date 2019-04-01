@@ -2,7 +2,9 @@
 
 
 class Hyper(object):
-    content_folder = '/home/pmankevich/git/TextRelevance/data/content/20190128'
+    base_path = '/home/pmankevich/git/InformationRetrieval/TextRelevance'
+
+    content_folder = '{}/data/content/20190128'.format(base_path)
     processed_content_folder = '/home/pmankevich/git/TextRelevance/processed_data/content'
     n_processes = 16
 

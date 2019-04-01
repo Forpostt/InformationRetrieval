@@ -2,7 +2,12 @@ TextRelevance/data/
 TextRelevance/processed_data/
 TextRelevance/results/
 
+TextRelevance/.ipynb_checkpoints/
+TextRelevance/*.ipynb
+
 LambdaMart/data/
+LambdaMart/.ipynb_checkpoints/
+LambdaMart/*.ipynb
 
 __pycache__/
 .idea/

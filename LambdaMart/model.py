@@ -1,9 +1,11 @@
 # coding: utf-8
 
 import xgboost as xgb
+import numpy as np
+import tqdm
 
 from hyper import Hyper
-from utils import load_data, create_submission
+from utils import load_data, create_submission, dcg
 
 
 params = {
@@ -16,18 +18,75 @@ params = {
 }
 
 
-def model():
-    train_dmatrix, test_dmatrix, q_id_test = load_data()
+class LambdaMart(object):
+    def __init__(self, param=params):
 
-    print('fit model')
-    xgb_model = xgb.train(
-        params, train_dmatrix, verbose_eval=True, num_boost_round=Hyper.n_estimators,
-        evals=[(train_dmatrix, 'eval')],
-    )
-    predict = xgb_model.predict(test_dmatrix)
+        self.model = None
+        self.params = param
 
-    create_submission(q_id_test, predict)
+        self.train_groups = None
+        self.query_id_to_permutations = {}
+
+    def _initialize(self, dtrain, train_groups):
+        print('initialize')
+
+        self.train_groups = train_groups
+
+        dlabels = dtrain.get_label()
+        cur_sample = 0
+
+        for i, group in tqdm.tqdm(enumerate(train_groups)):
+            labels = dlabels[cur_sample:cur_sample + group + 1]
+            labels_2d = np.tile(labels, (group, 1))
+
+            permutations = np.zeros(shape=(group, group))
+            permutations[labels_2d.transpose() > labels_2d] = 1
+            permutations[labels_2d.transpose() < labels_2d] = -1
+
+            self.query_id_to_permutations[i] = permutations
+            cur_sample += group
+
+    def _objective(self, predict, dtrain):
+        dlabels = dtrain.get_label()
+        cur_sample = 0
+
+        grad = np.ndarray(shape=(predict.shape[0], ))
+        hess = np.ndarray(shape=(predict.shape[0], ))
+
+        for i, group in enumerate(self.train_groups):
+            labels = dlabels[cur_sample:cur_sample + group + 1]
+            permutations = self.query_id_to_permutations[i]
+
+            max_dcg = dcg(np.sort(labels)[::-1])
+            sorted_ids = np.argsort(labels)[::-1] + 1
+
+            delta_ndcg = np.tile(1 / np.log(sorted_ids), (group, 1))
+            delta_ndcg = delta_ndcg.transpose() - delta_ndcg
+            delta_ndcg = (np.power(2, labels.reshape((-1, 1))) - 1) * delta_ndcg
+            delta_ndcg = np.abs(delta_ndcg / max_dcg)
+
+            ro = np.tile(predict[cur_sample:cur_sample + group + 1], (group, 1))
+            ro = Hyper.gamma * (ro.transpose() - ro)
+            ro = 1 / (np.exp(ro) + 1)
+
+            grad[cur_sample:cur_sample + group + 1] = (-Hyper.gamma * ro * delta_ndcg * permutations).sum(axis=1).reshape(-1, )
+            hess[cur_sample:cur_sample + group + 1] = (Hyper.gamma**2 * delta_ndcg * ro * (1 -ro)).sum(axis=1).reshape(-1, )
+
+            cur_sample += group
+
+        return grad, hess
+
+    def fit(self, dtrain, train_groups):
+        self._initialize(dtrain, train_groups)
+
+        self.model = xgb.train(
+            self.params, dtrain, verbose_eval=True, num_boost_round=Hyper.n_estimators,
+            evals=[(dtrain, 'eval')], obj=self._objective,
+        )
+
+    def predict(self, dtest, test_groups=None):
+        return self.model.predict(dtest)
 
 
 if __name__ == '__main__':
-    model()
+    model = LambdaMart()
