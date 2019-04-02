@@ -17,16 +17,17 @@ params = {
 
 
 class LambdaMart(object):
-    def __init__(self, num_pairsample=1, param=params):
+    def __init__(self, param=params, random_seed=1234):
 
         self.model = None
         self.params = param
-        self.num_pairsample = num_pairsample
 
         self.train_groups = None
         self.query_id_to_permutations = {}
 
         self.ndcg = []
+
+        np.random.seed(random_seed)
 
     def _initialize(self, dtrain, train_groups):
         print('initialize')
@@ -84,17 +85,21 @@ class LambdaMart(object):
             random_permutation = np.random.permutation(np.arange(1, group**2 + 1)).reshape((group, group))
             random_permutation = random_permutation * np.abs(permutations)
             random_permutation = np.argsort(random_permutation, axis=1)
-            random_permutation = random_permutation[:, -self.num_pairsample:]
+            random_permutation = random_permutation[:, -1:]
 
-            _grad = (-Hyper.gamma * ro * delta_ndcg * permutations)[:, random_permutation]
-            _hess = (Hyper.gamma**2 * delta_ndcg * ro * (1 - ro) * np.abs(permutations))[:, random_permutation]
+            new_pp = np.zeros(shape=(group, group))
+            new_pp[range(group), random_permutation] = permutations[range(group), random_permutation]
+            new_pp[random_permutation, range(group)] = permutations[random_permutation, range(group)]
+
+            _grad = (-Hyper.gamma * ro * delta_ndcg * new_pp)
+            _hess = (Hyper.gamma**2 * delta_ndcg * ro * (1 - ro) * np.abs(new_pp))
 
             grad[cur_sample:cur_sample + group] = _grad.sum(axis=1).reshape(-1, )
             hess[cur_sample:cur_sample + group] = _hess.sum(axis=1).reshape(-1, )
 
             cur_sample += group
 
-        hess[np.isclose(hess, 0)] = 1.
+        hess[np.isclose(hess, 0)] = 1e-6
         self.ndcg[-1] /= len(self.train_groups)
 
         return grad, hess
