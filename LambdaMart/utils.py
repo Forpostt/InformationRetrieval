@@ -39,5 +39,7 @@ def create_submission(q_id_test, predict):
                 fd.write('{},{}\n'.format(q_id, doc_id + 1))
 
 
-def dcg(labels):
-    return ((np.power(2, labels) - 1) / np.log(np.arange(1, len(labels) + 1) + 1)).sum()
+def dcg(labels, t=None):
+    if t is None:
+        t = len(labels)
+    return ((np.power(2, labels) - 1) / np.log(np.arange(1, len(labels) + 1) + 1))[:t].sum()
